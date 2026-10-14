@@ -1,0 +1,13 @@
+[project]
+name = "llm-usage-metering"
+version = "2.0.0"
+description = "Meter LLM spend with API keys, token/cost budgets, usage recording, over-budget alerts, and a spend breakdown dashboard for finance and platform teams."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

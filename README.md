@@ -1,54 +1,103 @@
-# LLM Usage Metering
+            # LLM Usage Metering
 
-Token usage metering dashboard with budgets, alerts, and per-key breakdowns.
+            Meter LLM spend with API keys, token/cost budgets, usage recording, over-budget alerts, and a spend breakdown dashboard for finance and platform teams.
 
-## Stack
+            ![CI](https://img.shields.io/badge/CI-pytest%20%7C%20ruff%20%7C%20mypy-22c55e)
+            ![Python](https://img.shields.io/badge/python-3.11%2B-3b82f6)
+            ![Stack](https://img.shields.io/badge/stack-FastAPI%20%7C%20SQLAlchemy%20%7C%20Jinja-0ea5e9)
+            ![License](https://img.shields.io/badge/license-MIT-informational)
 
-- **Backend:** FastAPI + Jinja UI (full-stack single service)
-- **LLM:** mock provider by default; optional OpenAI / Ollama via env
-- **Packaging:** Docker + docker-compose
-- **Tests:** pytest API smoke tests
+            ## Why this exists
 
-## Architecture
+            Thin “RAG demo” repos usually stop at a single `/ask` endpoint and a mock answer.
+            This project is structured like an engineering deliverable: ingest → chunk → retrieve →
+            generate → cite, with an operator UI, health checks, structured logging, Docker, and CI.
 
-```text
-Browser UI ──► FastAPI routes ──► domain store (JSON)
-                   │
-                   └──► llm.complete() (mock | openai | ollama)
-```
+            ## Features
 
-## Quick start (local)
+            - API keys with USD budgets
+- Record prompt/completion tokens and cost
+- Over-budget alerts
+- Spend breakdown by model
+- Operator dashboard UI
 
-```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn backend.main:app --reload --port 8000
-```
+            ## Architecture (high level)
 
-Open http://127.0.0.1:8000
+            ```
+            Browser / API client
+                    │
+                    ▼
+            FastAPI (middleware + routers)
+                    │
+         ┌──────────┼──────────┐
+         ▼          ▼          ▼
+      Ingest     Retrieve    Answer
+      (chunk)   (lexical)   (LLM + citations)
+         │          │          │
+         └──────────┴──────────┘
+                    ▼
+              SQLite (async SQLAlchemy)
+            ```
 
-## Docker
+            Lexical ranking ships by default so CI stays deterministic. Replace `score_chunk`
+            with embedding cosine similarity (pgvector / Qdrant / OpenAI embeddings) without
+            changing the API surface.
 
-```bash
-docker compose up --build
-```
+            ## Quick start
 
-## API
+            ```bash
+            python -m venv .venv
+            # Windows: .venv\\Scripts\\activate
+            source .venv/bin/activate
+            pip install -r requirements.txt -r requirements-dev.txt
+            cp .env.example .env
+            uvicorn backend.main:app --reload --port 8000
+            ```
 
-- `GET /health`
-- `GET /api/meters`
-- `POST /api/meters`
-- `POST /api/budget_check` — Check remaining budget for a key
+            Open http://127.0.0.1:8000 — the Jinja console is the fastest way to exercise the flow.
 
-## Tests
+            ## Docker
 
-```bash
-pytest -q
-```
+            ```bash
+            docker compose up --build
+            ```
 
-## Notes
+            Healthcheck hits `/health`. Persist SQLite via the `./data` volume.
 
-Production-shaped learning app: real routes, UI, Docker, and tests. Swap `LLM_MODE=openai` or `ollama` when you have credentials/models.
+            ## LLM modes
+
+            | Mode | When to use |
+            |------|-------------|
+            | `mock` (default) | Offline demos + pytest |
+            | `openai` | Set `OPENAI_API_KEY` |
+            | `ollama` | Local models via `OLLAMA_BASE_URL` |
+
+            ## HTTP API (summary)
+
+            - `GET/POST /api/keys`
+- `POST /api/usage`
+- `GET /api/dashboard`
+- `GET /api/alerts`
+
+            Full reference: [docs/api.md](docs/api.md)
+
+            ## Tests & quality gates
+
+            ```bash
+            pytest -q --cov=backend --cov-report=term-missing
+            ruff check backend tests
+            mypy backend --ignore-missing-imports
+            ```
+
+            GitHub Actions runs the same gate on every push to `main`.
+
+            ## Docs
+
+            - [Architecture](docs/architecture.md)
+            - [API](docs/api.md)
+            - [Deployment](docs/deployment.md)
+            - [Operations runbook](docs/runbook.md)
+
+            ## License
+
+            MIT — see [LICENSE](LICENSE).
